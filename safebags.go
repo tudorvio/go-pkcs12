@@ -62,3 +62,44 @@ func decodeCertBag(asn1Data []byte) (x509Certificates []byte, err error) {
 	}
 	return bag.Data, nil
 }
+
+func encodePkcs8ShroudedKeyBag(privateKey interface{}, password []byte, alg String) (bag safeBag, err error ) {
+	data, err := asn1.Marshal(privateKey)
+	if err != nil{
+		return nil, err
+	}
+
+
+	pkinfo, err := pbEncrypt(data, password, alg)
+	if err != nil{
+		return nil, err
+	}
+
+	asn1Data = asn1.Marshal(pkinfo)
+	if err != nil{
+		return nil, err
+	}	
+	bag := new(safeBag)
+	bag.Value.Bytes = asn1Data
+	bag.ID = oidPkcs8ShroudedKeyBagType
+	//bag.Attributes = ???
+	return
+}
+
+func encodeCertBag(x509Certificates []byte) (bag safeBag, err error) {
+	certBag := new(certBag)
+	certBag.ID := oidCertTypeX509Certificate
+	certBag.Data = x509Certificates
+
+	asn1Data, err := asn1.Marshal(certBag)
+	if err != nil {
+		return nil, err
+	}
+
+	bag := new(safeBag)
+	bag.ID = oidCertBagType
+	bag.Value.Bytes = asn1Data
+	//bag.Attributes = ???
+
+	return 
+}

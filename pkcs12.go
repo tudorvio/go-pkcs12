@@ -73,6 +73,11 @@ const (
 	PrivateKeyType  = "PRIVATE KEY"
 )
 
+var algByName = map[string]asn1.ObjectIdentifier {
+	PbeWithSHAAnd3KeyTripleDESCBC: asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 12, 1, 3}
+	PbewithSHAAnd40BitRC2CBC:      asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 12, 1, 6}
+}
+
 // ConvertToPEM converts all "safe bags" contained in pfxData to PEM blocks.
 func ConvertToPEM(pfxData, utf8Password []byte) (blocks []*pem.Block, err error) {
 	p, err := bmpString(utf8Password)
@@ -316,4 +321,66 @@ func getSafeContents(p12Data, password []byte) (bags []safeBag, actualPassword [
 		bags = append(bags, safeContents...)
 	}
 	return
+}
+
+func Encode(utf8Password []byte, privateKey interface{}, certificate x509.Certificate,
+			algorithm String) (p12Data, err error){
+	password, err := bmpString(utf8Password)
+	if err != nil {
+		return nil, err
+	}
+
+	bags = make([]safeBag, 2)
+	bags[0] = encodePkcs8ShroudedBag(privateKey, password, algorithm)
+	bags[1] = encodeCertBag(certificate)
+
+	content = make([]contentInfo, 2)
+	content = makeSafeContents(bags, password, keyEncr, algorithm)
+
+	pfx = new(pfxPdu)
+
+	// Should this be pfx.AuthSafe.Content.Bytes ?
+	pfx.AuthSafe.Content, err = asn1.Marshal(content)
+	if err != nil {
+		return nil, err
+	}
+
+	// Only version supported by the read package.
+	pfx.Version = 3
+
+	// Should Macdata be a parameter of the function?
+	pfx.Macdata = ?
+
+	p12Data, err = asn1.Marshal(pfx)
+	if err != nil{
+		return nil, err
+	}
+	return
+}
+
+func makeSafeContents (bags []safeBag, password []byte, alg String) (ci []contentInfo, err error) {
+	ci = make([]contentInfo, 2)
+	for i, b := range bags {
+		switch b.ID {
+		case oidCertTypeX509Certificate:
+			
+			ci[i].ContentType = oidDataContentType
+			ci[i].Content, err = asn1.Marshal(b)
+			if err != nil{
+				return nil, err
+			}
+		
+		case oidPkcs8ShroudedKeyBagType
+			ci[i].Content, err = pbEncrypt(b, alg, password)
+			if err != nil{
+				return nil, err
+			}
+
+			ci[i].Content, err = asn1.Marshal(ki.Content)
+			if err != nil{
+				return nil, err
+			}
+		}
+	}
+	return ci, err
 }
